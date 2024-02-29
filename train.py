@@ -5,6 +5,7 @@ from transformers import (
     TrainingArguments,
     Trainer,
     BitsAndBytesConfig,
+    TrainerCallback
 )
 from peft import (
     LoraConfig,
@@ -14,8 +15,10 @@ import transformers
 import warnings
 import wandb
 import os
+import gc
 import json
 from datasets import load_dataset
+from torch import cuda
 
 # 오류 로그 표시 안하도록 설정
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -23,7 +26,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false" # 토크나이저 병렬처리 �
 os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = 'true' # __cell__ 오류 방지
 
 # base_mdoel 및 학습 파일 경로 설정
-base_model = "google/gemma-7b" #"beomi/OPEN-SOLAR-KO-10.7B"
+base_model = "beomi/OPEN-SOLAR-KO-10.7B" #"beomi/OPEN-SOLAR-KO-10.7B" # google/gemma-7b
 file_name = 'datasets/labeled_train.jsonl'
 
 # QLoRA 모델을 사용하기 위한 설정
@@ -63,8 +66,8 @@ data = data.map(
     lambda x: {'text': f"### 질문: {instruction}{x['input']}\n\n### 답변: {x['output']}"}
 )
 
-# 데이터 분할 test:eval=95:5
-split_data = data.train_test_split(test_size=0.05) # 5%를 테스트셋으로 사용
+# 데이터 분할 test:eval=90:10
+split_data = data.train_test_split(test_size=0.1) # 10%를 검증셋으로 사용
 train_set = split_data['train']
 eval_set = split_data['test']
 
@@ -76,7 +79,7 @@ eval_set = eval_set.map(lambda samples: tokenizer(samples["text"], padding=True,
 peft_params = LoraConfig(
     lora_alpha=16,
     lora_dropout=0.1,
-    target_modules=["q_proj", "o_proj", "k_proj", "v_proj", "gate_proj", "up_proj", "down_proj"],
+    # target_modules=["q_proj", "o_proj", "k_proj", "v_proj", "gate_proj", "up_proj", "down_proj"],
     r=64,
     bias="none",
     task_type="CAUSAL_LM",
@@ -87,11 +90,41 @@ model = get_peft_model(model, peft_params)
 
 # prameter
 epochs = 10
-batch_size = 1
-accumulation_steps = 64
+batch_size = 4
+accumulation_steps = 16
 optimizer = "paged_adamw_32bit"
 lr = 3e-4
 
+class ClearCacheCallback(TrainerCallback):
+    def on_train_begin(self, args, state, control, **kwargs):
+        if cuda.is_available():
+            cuda.empty_cache()
+            self.clear_accelerator()
+
+    def on_epoch_begin(self, args, state, control, **kwargs):
+        if cuda.is_available():
+            cuda.empty_cache()
+            self.clear_accelerator()
+
+    def on_step_begin(self, args, state, control, **kwargs):
+        if cuda.is_available():
+            cuda.empty_cache()
+            self.clear_accelerator()
+
+    def on_init_end(self, args, state, control, **kwargs):
+        if cuda.is_available():
+            cuda.empty_cache()
+            self.clear_accelerator()
+
+    def on_log(self, args, state, control, **kwargs):
+        if cuda.is_available():
+            cuda.empty_cache()
+            self.clear_accelerator()
+
+    def clear_accelerator(self):
+        gc.collect()
+    
+            
 training_params = TrainingArguments(
     output_dir="models",
     num_train_epochs=epochs,
@@ -112,7 +145,7 @@ training_params = TrainingArguments(
     group_by_length=True,
     lr_scheduler_type="linear",
     report_to="wandb",
-    dataloader_num_workers=1,
+    dataloader_num_workers=8,
 )
 
 trainer = Trainer(
@@ -122,6 +155,12 @@ trainer = Trainer(
     eval_dataset=eval_set,
     tokenizer=tokenizer,
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
+    callbacks=[ClearCacheCallback()],
 )
 
+if cuda.is_available():
+    trainer.accelerator.clear()
+    cuda.empty_cache()
+    gc.collect()
+    
 trainer.train()
