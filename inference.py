@@ -5,14 +5,14 @@ import json
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
-version = 8
-model_path = "taewan2002/solar-qlora-wallpaper-deffects-qna/checkpoint-592"
+version = 9
+model_path = "taewan2002/solar-qlora-wallpaper-deffects-qna/checkpoint-296"
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     device_map="auto",
-    torch_dtype=torch.bfloat16,
+    torch_dtype=torch.float16,
 )
 
 instruction = '''당신은 전문 건축업자입니다. 다음 질문에 대해 답변해 주세요. '''
