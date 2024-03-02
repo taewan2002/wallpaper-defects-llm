@@ -1,2 +1,5 @@
 datasets
-.env
+outputs
+models
+wandb
+taewan2002

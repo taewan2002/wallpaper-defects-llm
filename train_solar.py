@@ -24,9 +24,9 @@ class ScriptArguments:
     """
     These arguments vary depending on how many GPUs you have, what their capacity and features are, and what size model you want to train.
     """
-    per_device_train_batch_size: Optional[int] = field(default=2)
+    per_device_train_batch_size: Optional[int] = field(default=4)
     per_device_eval_batch_size: Optional[int] = field(default=1)
-    gradient_accumulation_steps: Optional[int] = field(default=8)
+    gradient_accumulation_steps: Optional[int] = field(default=4)
     learning_rate: Optional[float] = field(default=2e-4)
     max_grad_norm: Optional[float] = field(default=0.3)
     weight_decay: Optional[int] = field(default=0.001)
@@ -84,7 +84,7 @@ parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
 # Load the GG model - this is the local one, update it to the one on the Hub
-model_id = "google/gemma-7b"
+model_id = "beomi/OPEN-SOLAR-KO-10.7B"
 
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -97,7 +97,7 @@ model = AutoModelForCausalLM.from_pretrained(
     model_id, 
     quantization_config=quantization_config, 
     torch_dtype=torch.float32,
-    attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2",
+    # attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2",
     device_map={"":0}
 )
 model.config.use_cache = False
@@ -123,7 +123,7 @@ model = get_peft_model(model, lora_config)
 skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
 # 데이터셋 로드 및 DataFrame으로 변환
-data = load_dataset('json', data_files=script_args.dataset_name, split="train")
+data = load_dataset(path=script_args.dataset_name, split="train")
 df = pd.DataFrame(data)
 
 # 지시문 설정 및 text 맵핑
@@ -146,7 +146,7 @@ eval_set = Dataset.from_pandas(eval_df)
 train_set = train_set.map(lambda samples: tokenizer(samples["text"], padding=True, truncation=True, return_tensors="pt"), batched=True)
 eval_set = eval_set.map(lambda samples: tokenizer(samples["text"], padding=True, truncation=True, return_tensors="pt"), batched=True)
 
-output_dir = "taewan2002/gemma-qlora-wallpaper-deffects-qna"
+output_dir = "taewan2002/solar-qlora-wallpaper-deffects-qna"
 
 class ClearCacheCallback(TrainerCallback):
     def on_train_begin(self, args, state, control, **kwargs):

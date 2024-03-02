@@ -5,13 +5,14 @@ import json
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
-version = 3
+version = 8
+model_path = "taewan2002/solar-qlora-wallpaper-deffects-qna/checkpoint-592"
 
-tokenizer = AutoTokenizer.from_pretrained("models/checkpoint-107")
+tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(
-    "models/checkpoint-107",
+    model_path,
     device_map="auto",
-    torch_dtype=torch.float32,
+    torch_dtype=torch.bfloat16,
 )
 
 instruction = '''당신은 전문 건축업자입니다. 다음 질문에 대해 답변해 주세요. '''
@@ -22,13 +23,12 @@ output_dir = f"outputs/test_{version}.jsonl"
 # CSV 파일 읽기
 df = pd.read_csv(dataset_dir)
 
-for index, row in tqdm(df.iterrows()):
-    # 입력 텍스트 구성
-    text = f"### 질문: {instruction}{row['질문']}\n\n### 답변: "
+for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+    text = f"{instruction}\n### 질문: {row['질문']}\n\n### 답변: "
     inputs = tokenizer(text, return_tensors="pt").to("cuda")
 
     # 모델을 사용해 출력 생성
-    outputs = model.generate(**inputs, max_new_tokens=300)
+    outputs = model.generate(**inputs, max_new_tokens=400, no_repeat_ngram_size=3, num_beams=8, early_stopping=True)
     full_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
     answer = full_text.split("### 답변: ")[1]
 
@@ -42,8 +42,6 @@ for index, row in tqdm(df.iterrows()):
     with open(output_dir, 'a') as outfile:
         outfile.write(json.dumps(result, ensure_ascii=False))
         outfile.write("\n")
-
-    print(f"generate {row['id']} complate")
 
 
 output_list = []
