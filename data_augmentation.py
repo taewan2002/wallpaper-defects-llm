@@ -5,18 +5,20 @@ from hanspell import spell_checker
 genai.configure(api_key="YOUR_API_KEY")
 model = genai.GenerativeModel('gemini-1.0-pro-latest')
 
+# 각 카테고리의 데이터가 골고루 증강될 수 있도록 리스트를 구성합니다.
 category_list = ['건축구조', '기타', '마감재', '마감하자', '시공', '인테리어', '타 마감하자']
 
 ## Step 1: Generate new Q&A with gemini-pro
 def generate_qna(Q1, A1, Q2, A2):
     prompt = '''
-당신은 전문 건축업자 입니다. 다음 두 질의응답을 바탕으로 자연스러운 한국어로 하나의 질문과 답변을 만들어 주세요.
+당신은 전문 건축업자 입니다. 다음 두 질의응답을 바탕으로 하나의 질문과 답변을 만들어 주세요.
 
 다음과 같은 사항을 고려해주세요.
 - 답변의 길이는 100자에서 300자 사이어야 한다.
 - 질문자가 궁금해하는 것을 해결할 수 있어야 한다.
 - 사실에 근거하여 자세히 답변해야 한다.
-- 답변은 한국어로 이루어져야 한다.
+- 답변은 존댓말을 사용하는 한국어로 이루어져야 한다.
+- 두 질문을 이어붙여도 된다.
 
 ex) 
 ### 입력
@@ -57,12 +59,12 @@ A2: {A2}
 def check_length(A):
     return len(A) < 100 or len(A) > 300
 
-## Step 3: Korean spelling check
+## Step 3: Check korean spelling
 def check_spell(A):
     hanspell_output = spell_checker.check(A)
     return hanspell_output.checked
 
-## Step 4: Average score check with gemini-pro
+## Step 4: Check average score with gemini-pro
 def check_score(Q, A):
     prompt = '''
 당신은 전문 건축업자 입니다. 다음 질의응답을 보고, 각 평가항목에 대한 점수를 매겨주세요.
@@ -114,7 +116,9 @@ def main():
             category_set = {}
             total_data_list = []
 
+            # 새로 생성된 데이터도 포함하여 복원 추출하기 위해 다시 데이터를 읽어옵니다.
             with open(f'datasets/train.jsonl', 'r') as json_file:
+                line_num = 0
                 for line in json_file:
                     data = json.loads(line)
                     total_data_list.append(data)
@@ -122,7 +126,9 @@ def main():
                         category_set[data['category']] = []
                     else:
                         category_set[data['category']].append(data)
+                    line_num += 1
             
+            # 각 카테고리에서 랜덤으로 2개의 질문을 가져옵니다.
             random_question = random.sample(category_set[category], 2)
 
             Q1 = random_question[0]['input']
@@ -131,15 +137,23 @@ def main():
             A2 = random_question[1]['output']
             
             ## Step 1: Generate new Q&A with gemini-pro
-            Q3, A3 = generate_qna(Q1, A1, Q2, A2)
+            try:
+                Q3, A3 = generate_qna(Q1, A1, Q2, A2)
+            except:
+                print("Generate new Q&A fail")
+                continue
 
             ## Step 2: Check answer length
             if check_length(A3):
                 print("Check answer length fail")
                 continue
 
-            ## Step 3: Korean spelling check
-            A3 = check_spell(A3)
+            ## Step 3: Check korean spelling
+            try:
+                A3 = check_spell(A3)
+            except:
+                print("Check korean spelling fail")
+                continue
 
             ## Step 4: Check average score with gemini-pro
             average_score = check_score(Q3, A3)
@@ -159,8 +173,5 @@ def main():
                 json_file.write('\n')
 
             print("save new data")
-            break
-        break
 
 main()
-    

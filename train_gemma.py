@@ -24,9 +24,9 @@ class ScriptArguments:
     """
     These arguments vary depending on how many GPUs you have, what their capacity and features are, and what size model you want to train.
     """
-    per_device_train_batch_size: Optional[int] = field(default=4)
+    per_device_train_batch_size: Optional[int] = field(default=2)
     per_device_eval_batch_size: Optional[int] = field(default=1)
-    gradient_accumulation_steps: Optional[int] = field(default=4)
+    gradient_accumulation_steps: Optional[int] = field(default=8)
     learning_rate: Optional[float] = field(default=2e-4)
     max_grad_norm: Optional[float] = field(default=0.3)
     weight_decay: Optional[int] = field(default=0.001)
@@ -76,7 +76,7 @@ class ScriptArguments:
     warmup_ratio: float = field(default=0.03, metadata={"help": "Fraction of steps to do a warmup for"})
     logging_steps: int = field(default=1, metadata={"help": "Log every X updates steps."})
     output_dir: str = field(
-        default="taewan2002/solar-qlora-wallpaper-deffects-qna",
+        default="taewan2002/gemma-qlora-wallpaper-deffects-qna",
         metadata={"help": "The output directory where the model predictions and checkpoints will be written."},
     )
 
@@ -84,7 +84,7 @@ parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
 # Load the GG model - this is the local one, update it to the one on the Hub
-model_id = "beomi/OPEN-SOLAR-KO-10.7B"
+model_id = "google/gemma-7b"
 
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -120,7 +120,7 @@ lora_config = LoraConfig(
 model = get_peft_model(model, lora_config)
 
 # StratifiedKFold 인스턴스 생성
-skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+skf = StratifiedKFold(n_splits=10, shuffle=True)
 
 # 데이터셋 로드 및 DataFrame으로 변환
 data = load_dataset(path=script_args.dataset_name, split="train")
