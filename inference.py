@@ -5,8 +5,8 @@ import json
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
-version = 10
-model_path = "taewan2002/solar-qlora-wallpaper-deffects-qna/checkpoint-592"
+version = 12
+model_path = "taewan2002/solar-qlora-wallpaper-deffects-qna/checkpoint-675"
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(

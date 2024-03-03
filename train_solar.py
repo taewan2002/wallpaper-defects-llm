@@ -95,7 +95,7 @@ quantization_config = BitsAndBytesConfig(
 # Load model
 model = AutoModelForCausalLM.from_pretrained(
     model_id, 
-    quantization_config=quantization_config, 
+    quantization_config=quantization_config,
     torch_dtype=torch.float32,
     attn_implementation="sdpa" if not script_args.use_flash_attention_2 else "flash_attention_2",
     device_map={"":0}
