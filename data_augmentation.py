@@ -1,7 +1,6 @@
 import json
 import google.generativeai as genai
 import random
-from hanspell import spell_checker
 genai.configure(api_key="YOUR_API_KEY")
 model = genai.GenerativeModel('gemini-1.0-pro-latest')
 
@@ -59,12 +58,8 @@ A2: {A2}
 def check_length(A):
     return len(A) < 100 or len(A) > 300
 
-## Step 3: Check korean spelling
-def check_spell(A):
-    hanspell_output = spell_checker.check(A)
-    return hanspell_output.checked
 
-## Step 4: Check average score with gemini-pro
+## Step 3: Check average score with gemini-pro
 def check_score(Q, A):
     prompt = '''
 당신은 전문 건축업자 입니다. 다음 질의응답을 보고, 각 평가항목에 대한 점수를 매겨주세요.
@@ -108,7 +103,7 @@ A: {A}
 
 
 def main():
-    for i in range(100):
+    for i in range(350):
 
         for category in category_list:
             print(f"start data augmentation")
@@ -117,7 +112,7 @@ def main():
             total_data_list = []
 
             # 새로 생성된 데이터도 포함하여 복원 추출하기 위해 다시 데이터를 읽어옵니다.
-            with open(f'datasets/train.jsonl', 'r') as json_file:
+            with open(f'datasets/train_6.jsonl', 'r') as json_file:
                 line_num = 0
                 for line in json_file:
                     data = json.loads(line)
@@ -148,14 +143,7 @@ def main():
                 print("Check answer length fail")
                 continue
 
-            ## Step 3: Check korean spelling
-            try:
-                A3 = check_spell(A3)
-            except:
-                print("Check korean spelling fail")
-                continue
-
-            ## Step 4: Check average score with gemini-pro
+            ## Step 3: Check average score with gemini-pro
             average_score = check_score(Q3, A3)
             if float(average_score) < 3:
                 print("Check average socore fail")
@@ -168,7 +156,7 @@ def main():
                 'average_score': f"{average_score:.2f}"
             }
 
-            with open(f'datasets/train.jsonl', 'a') as json_file:
+            with open(f'datasets/train_6.jsonl', 'a') as json_file:
                 json_file.write(json.dumps(output_dict, ensure_ascii=False))
                 json_file.write('\n')
 

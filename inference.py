@@ -5,17 +5,17 @@ import json
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
-version = 12
-model_path = "taewan2002/solar-qlora-wallpaper-deffects-qna/checkpoint-675"
+version = 20
+model_path = "taewan2002/gemma-qlora-wallpaper-deffects-qna/checkpoint-1781"
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     device_map="auto",
-    torch_dtype=torch.float16,
+    torch_dtype=torch.float32,
 )
 
-instruction = '''당신은 전문 건축업자입니다. 다음 질문에 대해 답변해 주세요. '''
+instruction = '''링크를 포함하지 마세요. 당신은 전문 건축업자입니다. 다음 질문에 대해 답변해 주세요.'''
 
 dataset_dir = "datasets/test.csv"
 output_dir = f"outputs/test_{version}.jsonl"
@@ -24,11 +24,21 @@ output_dir = f"outputs/test_{version}.jsonl"
 df = pd.read_csv(dataset_dir)
 
 for index, row in tqdm(df.iterrows(), total=df.shape[0]):
-    text = f"{instruction}\n### 질문: {row['질문']}\n\n### 답변: "
+    text = f"{instruction}\n\n### 질문: {row['질문']}\n### 답변: "
     inputs = tokenizer(text, return_tensors="pt").to("cuda")
 
-    # 모델을 사용해 출력 생성
-    outputs = model.generate(**inputs, max_new_tokens=400, no_repeat_ngram_size=3, num_beams=8, early_stopping=True)
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=300, 
+        no_repeat_ngram_size=3,
+        top_k=1,
+        top_p=0.9,
+        num_beams=2, 
+        early_stopping=True,
+        repetition_penalty=1.2,
+        do_sample=True,
+    )
+
     full_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
     answer = full_text.split("### 답변: ")[1]
 
