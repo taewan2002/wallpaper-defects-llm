@@ -7,6 +7,8 @@ NLP(자연어 처리) 기반의 QA (질문-응답) 시스템을 통해 도배하
 
 ## 코드 실행 방법
 ### 학습
+학습된 모델은 [taewan2002/gemma-qlora-wallpaper-deffects-qna](https://huggingface.co/taewan2002/gemma-qlora-wallpaper-deffects-qna)에 업로드 돼 있습니다. adapter파일을 다운로드 하여 학습 없이 실행할 수 있습니다. datasets 디렉토리 안에 제공된 파일들을 넣어줘야 합니다.
+
 1. 리포지토리를 클론합니다.
 
 2. 라이브러리를 설치합니다.
